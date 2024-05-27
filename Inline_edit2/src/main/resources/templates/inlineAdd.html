@@ -1,0 +1,215 @@
+<!doctype html>
+<html>
+
+<head>
+<title>Spring Boot AJAX jQuery CRUD</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<!-- jQuery Modal -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
+
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+        integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+
+<script type="text/javascript">
+	$(document).ready(function () {
+	    // Function to add a new empty row
+	    function addEmptyRow() {
+	        var newRow = '<tr>' +
+	            '<td></td>' + // Empty cell for ID
+	            '<td contenteditable="true"></td>' + // Editable cell for name
+	            '<td contenteditable="true"></td>' + // Editable cell for email
+	            '<td><button class=\'save\'>Save</button>&nbsp;&nbsp;<button class=\'cancel\'>Cancel</button></td>' +
+	            '</tr>';
+	        $('#companyTableBody').append(newRow);
+	    }
+	
+	    // Fetch company data and populate table
+	    $.getJSON('http://localhost:9090/companyList', function (json) {
+	        var tr = [];
+	        for (var i = 0; i < json.length; i++) {
+	            tr.push('<tr>');
+	            tr.push('<td>' + json[i].id + '</td>');
+	            tr.push('<td>' + json[i].name + '</td>');
+	            tr.push('<td>' + json[i].email + '</td>');
+	            tr.push('<td><button class=\'edit\' id="a">Edit</button>&nbsp;&nbsp;<button class=\'delete\' id=' + json[i].id + '>Delete</button></td>');
+	            tr.push('</tr>');
+	        }
+	        $('#companyTableBody').html(tr.join('')); // Append table rows to tbody
+	    });
+	
+	    // Add new empty row when the "Add" button is clicked
+	    $('#addNew').click(function () {
+	        addEmptyRow();
+	    });
+	
+	    // Save functionality
+	    $(document).on('click', '.save', function () {
+	        var $row = $(this).closest('tr');
+	        var id = $row.find('td:nth-child(1)').text();
+	        var name = $row.find('td:nth-child(2)').text().trim(); // Trim whitespace
+	        var email = $row.find('td:nth-child(3)').text().trim(); // Trim whitespace
+	
+	        // Perform validation
+	        if (name === '' || email === '') {
+	            $("#msg").html("<span style='color: red'>Name and Email are required</span>");
+				window.setTimeout(function () {location.reload()}, 1000)
+	            return;
+	        }
+	
+	        $.ajax({
+	            type: "POST",
+	            contentType: "application/json; charset=utf-8",
+	            url: "http://localhost:9090/company/save",
+	            data: JSON.stringify({'id': id, 'name': name, 'email' : email}),
+	            cache: false,
+	            success: function (result) {
+	                $("#msg").html("<span style='color: green'>Company added successfully</span>");
+	                $row.find('.save').text('Edit').removeClass('save').addClass('edit');
+	                $row.find('.cancel').remove();
+					window.setTimeout(function () {location.reload()}, 1000)
+	            },
+	            error: function (err) {
+	                $("#msg").html("<span style='color: red'>Error saving company</span>");
+	            }
+	        });
+	    });
+	
+	    // Cancel functionality
+	    $(document).on('click', '.cancel', function () {
+	        $(this).closest('tr').remove();
+	    });
+	
+	    // Edit functionality remains the same
+	    // Delete functionality remains the same
+	});
+
+
+		$(document).delegate('.delete', 'click', function () {
+			if (confirm('Do you really want to delete record?')) {
+				var id = $(this).attr('id');
+				var parent = $(this).parent().parent();
+				$.ajax({
+					type: "DELETE",
+					url: "http://localhost:9090/company/delete/" + id,
+					cache: false,
+					success: function () {
+						parent.fadeOut('slow', function () {
+							$(this).remove();
+						});
+						location.reload(true)
+					},
+					error: function () {
+						$('#err').html('<span style=\'color:red; font-weight: bold; font-size: 30px;\'>Error deleting record').fadeIn().fadeOut(4000, function () {
+							$(this).remove();
+						});
+					}
+				});
+			}
+		});
+
+		$(document).delegate('.edit', 'click', function () {
+		    var parent = $(this).parent().parent();
+		
+		    var id = parent.children("td:nth-child(1)");
+		    var name = parent.children("td:nth-child(2)");
+			var email = parent.children("td:nth-child(3)");
+		    var buttons = parent.children("td:nth-child(4)");
+		
+		    // Store original value in a variable
+		    var originalValue = name.html();
+			var originalEmail = email.html();
+		
+		    // Replace content with input field and save/cancel buttons
+		    name.html("<input type='text' id='txtName' value='" + originalValue + "'/>");
+			email.html("<input type='email' id='txtEmail' value='" + originalEmail + "'/>");
+		    buttons.html("<button id='save'>Save</button>&nbsp;&nbsp;<button id='cancel'>Cancel</button>");
+		
+		    // Save original value to data attribute of parent row
+		    parent.data('original-value', originalValue);
+			parent.data('original-email', originalEmail );
+		});
+		
+		// Delegate click event for #save button
+		$(document).delegate('#save', 'click', function () {
+		    var parent = $(this).parent().parent();
+		
+		    var id = parent.children("td:nth-child(1)");
+		    var name = parent.children("td:nth-child(2)");
+			var email = parent.children("td:nth-child(3)");
+			var buttons = parent.children("td:nth-child(4)");
+		
+		    $.ajax({
+		        type: "POST",
+		        contentType: "application/json; charset=utf-8",
+		        url: "http://localhost:9090/company/save",
+		        data: JSON.stringify({'id': id.html(), 'name': name.children("input[type=text]").val(),'email': email.children("input[type=email]").val()}),
+		        cache: false,
+		        success: function () {
+		            name.html(name.children("input[type=text]").val());
+					email.html(email.children("input[type=email]").val());
+		            buttons.html("<button class='edit'>Edit</button>&nbsp;&nbsp;<button class='delete' id='" + id.html() + "'>Delete</button>");
+		        },
+		        error: function () {
+		            $('#err').html('<span style=\'color:red; font-weight: bold; font-size: 30px;\'>Error updating record').fadeIn().fadeOut(4000, function () {
+		                $(this).remove();
+		            });
+		        }
+		    });
+		});
+		
+		$(document).delegate('#cancel', 'click', function () {
+		    var parent = $(this).parent().parent();
+		
+		    var name = parent.children("td:nth-child(2)");
+			var email = parent.children("td:nth-child(3)");
+			var buttons = parent.children("td:nth-child(4)");
+		
+		    // Retrieve original value from data attribute
+		    var originalValue = parent.data('original-value');
+			var originalEmail = parent.data('original-email');
+		
+		    // Restore original value
+		    name.html(originalValue);
+			email.html(originalEmail)
+		    buttons.html("<button class='edit'>Edit</button>&nbsp;&nbsp;<button class='delete'>Delete</button>");
+		});
+
+
+	
+</script>
+<style>
+	#table1{
+		width: 950px;
+	}
+</style>
+</head>
+
+<body>
+
+	<h2 	class="text-center" >Spring Boot AJAX jQuery CRUD</h2>
+	
+	<!-- Change the button to a simple button to trigger adding an empty row -->
+	<p style="padding-left: 283px;"><button class='btn' id="addNew">Add New Company</button></p>
+	
+	<table 	class="container table table-striped " id="table1">
+	    <thead>
+	        <tr>
+	            <th>Id</th>
+	            <th>Name</th>
+	            <th>Email</th>
+	            <th>Actions</th>
+	        </tr>
+	    </thead>
+	    <tbody id="companyTableBody">
+	        <!-- Existing rows will be populated dynamically -->
+	    </tbody>
+	</table>
+	
+	<div id='msg'></div>
+
+</body>
+
+</html>

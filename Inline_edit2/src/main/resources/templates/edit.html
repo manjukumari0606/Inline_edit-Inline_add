@@ -1,0 +1,182 @@
+ <!doctype html>
+<html>
+
+<head>
+	<title>Spring Boot AJAX jQuery CRUD</title>
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<!-- jQuery Modal -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
+	
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+	        integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+	    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+
+	<script type="text/javascript">
+		$(document).ready(function () {
+			$.getJSON('http://localhost:9090/companyList', function (json) {
+				var tr = [];
+				for (var i = 0; i < json.length; i++) {
+					tr.push('<tr>');
+					tr.push('<td>' + json[i].id + '</td>');
+					tr.push('<td>' + json[i].name + '</td>');
+					tr.push('<td>' + json[i].email + '</td>');
+					tr.push('<td><button class=\'edit\'>Edit</button>&nbsp;&nbsp;<button class=\'delete\' id=' + json[i].id + '>Delete</button></td>');
+					tr.push('</tr>');
+				}
+				$('table').append($(tr.join('')));
+			});
+
+			$(document).delegate('#addNew', 'click', function (event) {
+			    event.preventDefault();
+			
+			    var name = $('#name').val();
+			    var email = $('#email').val();
+			
+			    $.ajax({
+			        type: "POST",
+			        contentType: "application/json; charset=utf-8",
+			        url: "http://localhost:9090/company/save",
+			        data: JSON.stringify({'name': name, 'email' : email}),
+			        cache: false,
+			        success: function (result) {
+			            $("#msg").html("<span style='color: green'>Company added successfully</span>");
+			            window.setTimeout(function () {location.reload()}, 1000);
+			        },
+			        error: function (err) {
+			            $("#msg").html("<span style='color: red'>Name and Email are required</span>"); // Changed error message
+			            return false; // Prevent form submission
+			        }
+			    });
+			});
+
+			$(document).delegate('.delete', 'click', function () {
+				if (confirm('Do you really want to delete record?')) {
+					var id = $(this).attr('id');
+					var parent = $(this).parent().parent();
+					$.ajax({
+						type: "DELETE",
+						url: "http://localhost:9090/company/delete/" + id,
+						cache: false,
+						success: function () {
+							parent.fadeOut('slow', function () {
+								$(this).remove();
+							});
+							location.reload(true)
+						},
+						error: function () {
+							$('#err').html('<span style=\'color:red; font-weight: bold; font-size: 30px;\'>Error deleting record').fadeIn().fadeOut(4000, function () {
+								$(this).remove();
+							});
+						}
+					});
+				}
+			});
+
+			$(document).delegate('.edit', 'click', function () {
+			    var parent = $(this).parent().parent();
+			
+			    var id = parent.children("td:nth-child(1)");
+			    var name = parent.children("td:nth-child(2)");
+				var email = parent.children("td:nth-child(3)");
+			    var buttons = parent.children("td:nth-child(4)");
+			
+			    // Store original value in a variable
+			    var originalValue = name.html();
+				var originalEmail = email.html();
+			
+			    // Replace content with input field and save/cancel buttons
+			    name.html("<input type='text' id='txtName' value='" + originalValue + "'/>");
+				email.html("<input type='email' id='txtEmail' value='" + originalEmail + "'/>");
+			    buttons.html("<button id='save'>Save</button>&nbsp;&nbsp;<button id='cancel'>Cancel</button>");
+			
+			    // Save original value to data attribute of parent row
+			    parent.data('original-value', originalValue);
+				parent.data('original-email', originalEmail );
+			});
+			
+			// Delegate click event for #save button
+			$(document).delegate('#save', 'click', function () {
+			    var parent = $(this).parent().parent();
+			
+			    var id = parent.children("td:nth-child(1)");
+			    var name = parent.children("td:nth-child(2)");
+				var email = parent.children("td:nth-child(3)");
+							    var buttons = parent.children("td:nth-child(4)");
+			
+			    $.ajax({
+			        type: "POST",
+			        contentType: "application/json; charset=utf-8",
+			        url: "http://localhost:9090/company/save",
+			        data: JSON.stringify({'id': id.html(), 'name': name.children("input[type=text]").val(),'email': email.children("input[type=email]").val()}),
+			        cache: false,
+			        success: function () {
+			            name.html(name.children("input[type=text]").val());
+						email.html(email.children("input[type=email]").val());
+			            buttons.html("<button class='edit'>Edit</button>&nbsp;&nbsp;<button class='delete' id='" + id.html() + "'>Delete</button>");
+			        },
+			        error: function () {
+			            $('#err').html('<span style=\'color:red; font-weight: bold; font-size: 30px;\'>Error updating record').fadeIn().fadeOut(4000, function () {
+			                $(this).remove();
+			            });
+			        }
+			    });
+			});
+			
+			$(document).delegate('#cancel', 'click', function () {
+			    var parent = $(this).parent().parent();
+			
+			    var name = parent.children("td:nth-child(2)");
+				var email = parent.children("td:nth-child(3)");
+				var buttons = parent.children("td:nth-child(4)");
+			
+			    // Retrieve original value from data attribute
+			    var originalValue = parent.data('original-value');
+				var originalEmail = parent.data('original-email');
+			
+			    // Restore original value
+			    name.html(originalValue);
+				email.html(originalEmail)
+			    buttons.html("<button class='edit'>Edit</button>&nbsp;&nbsp;<button class='delete'>Delete</button>");
+			});
+
+
+		});
+	</script>
+</head>
+
+<body>
+
+	<h2>Spring Boot AJAX jQuery CRUD</h2>
+
+	<p><a class='btn' href="#add" rel="modal:open">Add New Company</a></p>
+
+	<table border="1" cellspacing="0" cellpadding="5">
+		<tr>
+			<th>Id</th>
+			<th>Name</th>
+			<th>Email</th>
+			<th>Actions</th>
+		</tr>
+	</table>
+
+	<form id="add" action="#" class="add_form modal" style="display:none;">
+		<div id='msg' />
+		<h3>Add a New Company</h3>
+		<p>
+			<label>Name</label>
+			<input type="text" id="name" name="name">
+		</p>
+		<p>
+			<label>Email</label>
+					<input type="email"  id="email" name="email">
+				</p>
+		<p>
+			<input type="submit" id="addNew" value="Submit">
+		</p>
+	</form>
+
+</body>
+
+</html>
